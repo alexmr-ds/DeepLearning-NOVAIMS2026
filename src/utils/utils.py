@@ -7,6 +7,7 @@ import hashlib
 import imagehash
 import tensorflow as tf
 from PIL import Image
+from tensorflow.keras import layers
 
 
 def load_image_datasets(dataset_path, image_size=(224, 224), batch_size=32):
@@ -36,6 +37,15 @@ def load_image_datasets(dataset_path, image_size=(224, 224), batch_size=32):
     )
 
     return train_dataset, validation_dataset, test_dataset
+
+
+mixup = layers.MixUp(alpha=0.2)
+
+
+def apply_mixup(images, labels):
+    labels = tf.one_hot(tf.cast(labels, tf.int32), depth=23)
+    mixed = mixup({"images": images, "labels": labels})
+    return mixed["images"], mixed["labels"]
 
 
 def get_md5_hash(image_path):

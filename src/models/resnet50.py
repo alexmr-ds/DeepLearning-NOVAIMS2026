@@ -27,12 +27,17 @@ def build_model(num_classes: int = 23, trainable_layers: int = 30) -> keras.Mode
     """
 
     # --- Data augmentation --- #
+    # inside the model
     data_augmentation = keras.Sequential(
         [
-            layers.RandomBrightness(0.1, value_range=(0, 255)),
-            layers.RandomContrast(0.1, value_range=(0, 255)),
-            layers.RandomSaturation((0.9, 1.1), value_range=(0, 255)),
-            layers.RandomZoom(0.05),
+            layers.RandomFlip("horizontal"),
+            layers.RandomRotation(0.08),
+            layers.RandomZoom((-0.15, 0.10)),
+            layers.RandomTranslation(0.05, 0.05),
+            layers.RandomBrightness(0.08, value_range=(0, 255)),
+            layers.RandomContrast(0.12, value_range=(0, 255)),
+            layers.RandomSaturation((0.45, 0.60), value_range=(0, 255)),
+            layers.RandomSharpness((0.45, 0.60), value_range=(0, 255)),
         ],
         name="data_augmentation",
     )
