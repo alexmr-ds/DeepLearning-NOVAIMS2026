@@ -6,6 +6,8 @@ WikiArt artist classification project for the NOVA IMS 2026 deep learning course
 
 - The tracked raw dataset lives in `data/wikiart/` and currently contains 23 artist classes with 13,340 `.jpg` images.
 - The working split pipeline is `src/data/split_dataset.py`, which creates `data/train/`, `data/validation/`, and `data/test/` from the tracked raw dataset.
+- The raw-dataset cleanup utility is `src/preprocessing/remove_duplicates.py`, which removes duplicate WikiArt images listed in `src/preprocessing/images_to_remove.json` directly from `data/wikiart/`.
+- The top-level preprocessing entrypoint is `main.py`, which runs duplicate cleanup first and dataset splitting second.
 - The current reusable training components are:
   - `src/models/resnet50.py` for the ResNet50 transfer-learning model with built-in augmentation
   - `src/metrics/classification.py` for sparse-label macro F1
@@ -13,7 +15,7 @@ WikiArt artist classification project for the NOVA IMS 2026 deep learning course
 - The active experiment entrypoints are `EDA/EDA.ipynb`, `notebooks/explore_wikiart.ipynb`, `notebooks/alexandre_NN.ipynb`, and `notebooks/alexandre_NN_regularized.ipynb`.
 - `notebooks/alexandre_NN_regularized.ipynb` is the isolated regularized training notebook for the next staged ResNet50 run.
 - The latest tracked experiment artifact is `notebooks/results/history3.csv`, which ends at `val_macro_f1 = 0.7325`.
-- `main.py` is still a placeholder and is not part of the main training workflow.
+- `tests/test_main.py` validates that the preprocessing entrypoint runs cleanup before splitting and that split-module imports stay quiet.
 
 ## Quick Start
 
@@ -27,10 +29,22 @@ uv sync --all-groups
 
 If you need the older pip-style dependency flow, `requirements.txt` is still available, but `uv` is the primary setup path for this project.
 
-Generate the train/validation/test split:
+Run duplicate cleanup followed by split generation:
+
+```bash
+uv run python main.py
+```
+
+Run only the train/validation/test split:
 
 ```bash
 uv run python src/data/split_dataset.py
+```
+
+Remove duplicate raw WikiArt images before regenerating splits when needed:
+
+```bash
+uv run python src/preprocessing/remove_duplicates.py
 ```
 
 Important split-script behavior:
@@ -65,8 +79,9 @@ For dataset-wide exploratory analysis and saved figures, use `EDA/EDA.ipynb`.
 ## Workflow
 
 1. Inspect the raw dataset in `data/wikiart/` with `EDA/EDA.ipynb` or `notebooks/explore_wikiart.ipynb`.
-2. Generate local split folders with `src/data/split_dataset.py`.
-3. Train from `notebooks/alexandre_NN_regularized.ipynb`, which:
+2. Run `main.py` to remove known duplicate raw images and then generate local split folders in one sequence.
+3. Use `src/preprocessing/remove_duplicates.py` or `src/data/split_dataset.py` directly only when you need to run one preprocessing step in isolation.
+4. Train from `notebooks/alexandre_NN_regularized.ipynb`, which:
    - appends `src/` to `sys.path`
    - loads split folders with `load_image_datasets(...)`
    - builds a ResNet50 classifier with `build_model(...)`
@@ -119,8 +134,14 @@ DeepLearning-NOVAIMS2026/
 │   │   └── classification.py
 │   ├── models/
 │   │   └── resnet50.py
+│   ├── preprocessing/
+│   │   ├── images_to_remove.json
+│   │   └── remove_duplicates.py
 │   └── utils/
 │       └── utils.py
+├── tests/
+│   ├── test_main.py
+│   └── test_remove_duplicates.py
 └── uv.lock
 ```
 
@@ -139,7 +160,7 @@ Tracked files and directories:
 - `README.md`: project overview, workflow, and repository map.
 - `data/wikiart/<artist>/*.jpg`: tracked raw WikiArt images organized by artist.
 - `documents/Deep_Learning_Project.pdf`: project brief and supporting reference material.
-- `main.py`: placeholder entrypoint that currently prints a minimal message.
+- `main.py`: sequential preprocessing entrypoint that removes duplicate raw WikiArt images and then builds train/validation/test splits.
 - `notebooks/Data Understanding - Group 8.ipynb`: early dataset understanding notebook.
 - `notebooks/alexandre_NN.ipynb`: current training notebook for the ResNet50 pipeline.
 - `notebooks/alexandre_NN_regularized.ipynb`: isolated regularized training notebook with staged fine-tuning and separate artifact paths.
@@ -154,7 +175,11 @@ Tracked files and directories:
 - `src/metrics/__init__.py`: metrics package marker.
 - `src/metrics/classification.py`: custom macro-F1 metric for sparse integer labels.
 - `src/models/resnet50.py`: ResNet50 transfer-learning model builder with augmentation layers.
+- `src/preprocessing/images_to_remove.json`: curated list of raw WikiArt image paths flagged for duplicate removal.
+- `src/preprocessing/remove_duplicates.py`: raw-dataset cleanup script that normalizes duplicate-path entries and deletes matching files only from `data/wikiart/`.
+- `tests/test_main.py`: tests for the top-level preprocessing pipeline order and quiet split-module imports.
 - `src/utils/utils.py`: dataset loading, MixUp, exact hash, and perceptual hash utilities.
+- `tests/test_remove_duplicates.py`: regression tests for duplicate-removal path normalization, safety checks, and cwd-independent execution.
 - `uv.lock`: locked dependency resolution for reproducible `uv` installs.
 
 ## Data Layout
@@ -185,7 +210,8 @@ The current notebooks and utility functions expect the generated split folders t
 
 ## Notes
 
-- The project is currently notebook-driven; there is no finished CLI training entrypoint yet.
+- `main.py` is a preprocessing entrypoint, not a training CLI; notebook workflows remain the primary training path.
+- `src/preprocessing/remove_duplicates.py` resolves duplicate file paths relative to the repository root, so it can be launched from outside `src/preprocessing/`.
 - `notebooks/alexandre_NN.ipynb` assumes a 23-class problem in the current training helpers and notebook logic.
 - `notebooks/alexandre_NN_regularized.ipynb` keeps sparse-label training, leaves MixUp disabled on purpose, and writes separate training artifacts so the baseline notebook outputs are preserved.
 - `EDA/EDA.ipynb` is more robust about locating the project root than the training notebook, so it can be run from more locations.

@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-print(PROJECT_ROOT)
 RAW_DATASET_DIR_NAME = "wikiart"
 SOURCE_DIR = PROJECT_ROOT / "data" / RAW_DATASET_DIR_NAME
 OUTPUT_DIR = PROJECT_ROOT / "data"
