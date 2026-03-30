@@ -39,10 +39,17 @@ def load_image_datasets(dataset_path, image_size=(224, 224), batch_size=32):
     return train_dataset, validation_dataset, test_dataset
 
 
+def one_hot_labels(images, labels):
+    """Converts integer class labels into one-hot encoded vectors for compatibility with categorical losses."""
+    labels = tf.one_hot(tf.cast(labels, tf.int32), depth=23)
+    return images, labels
+
+
 mixup = layers.MixUp(alpha=0.2)
 
 
 def apply_mixup(images, labels):
+    """Applies MixUp augmentation by blending images and converting labels to one-hot encoded soft targets."""
     labels = tf.one_hot(tf.cast(labels, tf.int32), depth=23)
     mixed = mixup({"images": images, "labels": labels})
     return mixed["images"], mixed["labels"]

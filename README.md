@@ -1,161 +1,192 @@
-# Deep Learning Project
+# DeepLearning-NOVAIMS2026
 
-Dataset preparation, exploration, and baseline CNN experimentation for WikiArt artist classification.
+WikiArt artist classification project for the NOVA IMS 2026 deep learning coursework. The current repository focuses on three things: exploring the WikiArt dataset, generating deterministic train/validation/test splits, and training TensorFlow transfer-learning baselines with a ResNet50 backbone.
 
 ## Current Status
 
-- `src/split_dataset.py` builds deterministic train, validation, and test splits from `data/wikiart/`.
-- `notebooks/NN.ipynb` loads `data/train`, `data/validation`, and `data/test` for baseline TensorFlow training.
-- `notebooks/EDA/EDA.ipynb` and `notebooks/explore_wikiart.ipynb` inspect the raw dataset under `data/wikiart/`.
-- `cnn_generalization_strategy_guide.md` captures follow-up regularization and architecture ideas.
-- `src/main.py` remains a minimal placeholder entrypoint.
-- `data/` is local-only and ignored by Git, so raw images and generated splits stay out of version control.
+- The tracked raw dataset lives in `data/wikiart/` and currently contains 23 artist classes with 13,340 `.jpg` images.
+- The working split pipeline is `src/data/split_dataset.py`, which creates `data/train/`, `data/validation/`, and `data/test/` from the tracked raw dataset.
+- The current reusable training components are:
+  - `src/models/resnet50.py` for the ResNet50 transfer-learning model with built-in augmentation
+  - `src/metrics/classification.py` for sparse-label macro F1
+  - `src/utils/utils.py` for dataset loading, MixUp, and image hashing helpers
+- The active experiment entrypoints are `EDA/EDA.ipynb`, `notebooks/explore_wikiart.ipynb`, `notebooks/alexandre_NN.ipynb`, and `notebooks/alexandre_NN_regularized.ipynb`.
+- `notebooks/alexandre_NN_regularized.ipynb` is the isolated regularized training notebook for the next staged ResNet50 run.
+- The latest tracked experiment artifact is `notebooks/results/history3.csv`, which ends at `val_macro_f1 = 0.7325`.
+- `main.py` is still a placeholder and is not part of the main training workflow.
 
-## Getting Started
+## Quick Start
 
-Install the environment with `uv`:
+Set up the environment with `uv`:
 
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install -r requirements.txt
+uv sync --all-groups
 ```
 
-Prepare the local raw dataset:
+If you need the older pip-style dependency flow, `requirements.txt` is still available, but `uv` is the primary setup path for this project.
 
-1. Create `data/wikiart/` in the project root.
-2. Add one subdirectory per artist.
-3. Put `.jpg` files directly inside each artist directory.
-
-Generate the split dataset:
+Generate the train/validation/test split:
 
 ```bash
-uv run python src/split_dataset.py
+uv run python src/data/split_dataset.py
 ```
 
-Open the notebooks in your preferred Jupyter environment after installing Jupyter in that environment.
+Important split-script behavior:
+
+- It reads the tracked raw dataset from `data/wikiart/`.
+- It writes generated folders to `data/train/`, `data/validation/`, and `data/test/`.
+- It uses ratios `0.70 / 0.15 / 0.15` with deterministic seed `73`.
+- It only copies `.jpg` files.
+- It refuses to run if split folders already exist, so remove or rename them before regenerating.
+
+With the current tracked raw dataset, the generated split sizes are:
+
+- `train`: 9,326 images
+- `validation`: 1,992 images
+- `test`: 2,022 images
+
+Launch the notebooks from the `notebooks/` directory so the current relative-path assumptions stay valid:
+
+```bash
+cd notebooks
+uv run jupyter lab
+```
+
+Open:
+
+- `alexandre_NN_regularized.ipynb` for the current regularized staged fine-tuning run
+- `alexandre_NN.ipynb` for the current training and fine-tuning workflow
+- `explore_wikiart.ipynb` for raw dataset inspection
+
+For dataset-wide exploratory analysis and saved figures, use `EDA/EDA.ipynb`.
+
+## Workflow
+
+1. Inspect the raw dataset in `data/wikiart/` with `EDA/EDA.ipynb` or `notebooks/explore_wikiart.ipynb`.
+2. Generate local split folders with `src/data/split_dataset.py`.
+3. Train from `notebooks/alexandre_NN_regularized.ipynb`, which:
+   - appends `src/` to `sys.path`
+   - loads split folders with `load_image_datasets(...)`
+   - builds a ResNet50 classifier with `build_model(...)`
+   - tracks macro F1 with `SparseMacroF1`
+   - trains in two stages: classifier head first, then fine-tunes the top 30 backbone layers
+   - adds Adam weight decay, early stopping, ReduceLROnPlateau, and stronger head dropout
+   - writes isolated artifacts to `training_log_regularized.csv`, `best_model_regularized.keras`, and `results/history_regularized.csv`
 
 ## Repository Tree
 
-Tracked repository files:
-
 ```text
-deep_learning_project/
+DeepLearning-NOVAIMS2026/
 ├── .gitignore
+├── .python-version
+├── EDA/
+│   ├── EDA.ipynb
+│   ├── images_per_artist.png
+│   ├── pixel_intensity_boxplot.png
+│   ├── pixel_intensity_boxplot_rgb.png
+│   ├── pixel_intensity_by_artist.png
+│   ├── pixel_intensity_rgb_by_artist.png
+│   └── shape_combinations.png
 ├── HPC_SETUP.md
 ├── README.md
-├── cnn_generalization_strategy_guide.md
+├── data/
+│   └── wikiart/
+│       ├── Albrecht_Durer/
+│       ├── ...
+│       └── Vincent_van_Gogh/
 ├── documents/
 │   └── Deep_Learning_Project.pdf
+├── main.py
 ├── notebooks/
 │   ├── Data Understanding - Group 8.ipynb
-│   ├── EDA/
-│   │   ├── EDA.ipynb
-│   │   ├── images_per_artist.png
-│   │   ├── pixel_intensity_boxplot.png
-│   │   ├── pixel_intensity_boxplot_rgb.png
-│   │   ├── pixel_intensity_by_artist.png
-│   │   ├── pixel_intensity_rgb_by_artist.png
-│   │   └── shape_combinations.png
-│   ├── NN.ipynb
-│   └── explore_wikiart.ipynb
+│   ├── alexandre_NN.ipynb
+│   ├── alexandre_NN_regularized.ipynb
+│   ├── explore_wikiart.ipynb
+│   ├── results/
+│   │   ├── history1.csv
+│   │   ├── history2.csv
+│   │   └── history3.csv
+│   └── training_log.csv
+├── pyproject.toml
 ├── requirements.txt
-└── src/
-    ├── main.py
-    ├── split_dataset.py
-    └── utils.py
+├── src/
+│   ├── data/
+│   │   └── split_dataset.py
+│   ├── metrics/
+│   │   ├── __init__.py
+│   │   └── classification.py
+│   ├── models/
+│   │   └── resnet50.py
+│   └── utils/
+│       └── utils.py
+└── uv.lock
 ```
 
-- `.gitignore`: ignores local datasets, virtual environments, caches, and training artifacts.
-- `HPC_SETUP.md`: notes for running the project on the target HPC environment.
-- `README.md`: project overview, setup steps, data layout, and workflow notes.
-- `cnn_generalization_strategy_guide.md`: recommendations for improving CNN generalization and reducing overfitting.
-- `documents/Deep_Learning_Project.pdf`: project brief and reference material.
-- `notebooks/Data Understanding - Group 8.ipynb`: exploratory notebook covering early dataset understanding work.
-- `notebooks/EDA/EDA.ipynb`: exploratory data analysis notebook for raw WikiArt images.
-- `notebooks/EDA/images_per_artist.png`: saved chart of image counts by artist.
-- `notebooks/EDA/pixel_intensity_boxplot.png`: saved grayscale intensity distribution chart.
-- `notebooks/EDA/pixel_intensity_boxplot_rgb.png`: saved RGB intensity boxplot chart.
-- `notebooks/EDA/pixel_intensity_by_artist.png`: saved grayscale intensity chart split by artist.
-- `notebooks/EDA/pixel_intensity_rgb_by_artist.png`: saved RGB intensity chart split by artist.
-- `notebooks/EDA/shape_combinations.png`: saved chart of image shape combinations.
-- `notebooks/NN.ipynb`: baseline training and evaluation notebook that consumes the generated split dataset.
-- `notebooks/explore_wikiart.ipynb`: notebook for inspecting dataset availability and raw image coverage.
-- `requirements.txt`: Python dependency list for the local environment.
-- `src/main.py`: placeholder CLI entrypoint.
-- `src/split_dataset.py`: dataset splitter rooted at `data/wikiart` and writing splits under `data/`.
-- `src/utils.py`: image hashing helpers used for duplicate-image analysis workflows.
+Tracked files and directories:
 
-## Local Data Layout
+- `.gitignore`: ignores generated split folders, virtual environments, caches, and saved model artifacts.
+- `.python-version`: local Python version pin for tools that respect it.
+- `EDA/EDA.ipynb`: main exploratory data analysis notebook for the tracked raw WikiArt dataset.
+- `EDA/images_per_artist.png`: saved chart of image counts per artist.
+- `EDA/pixel_intensity_boxplot.png`: saved grayscale intensity boxplot.
+- `EDA/pixel_intensity_boxplot_rgb.png`: saved RGB intensity boxplot.
+- `EDA/pixel_intensity_by_artist.png`: saved grayscale intensity summary by artist.
+- `EDA/pixel_intensity_rgb_by_artist.png`: saved RGB intensity summary by artist.
+- `EDA/shape_combinations.png`: saved chart of image shape frequencies.
+- `HPC_SETUP.md`: Deucalion HPC access, environment setup, and execution notes.
+- `README.md`: project overview, workflow, and repository map.
+- `data/wikiart/<artist>/*.jpg`: tracked raw WikiArt images organized by artist.
+- `documents/Deep_Learning_Project.pdf`: project brief and supporting reference material.
+- `main.py`: placeholder entrypoint that currently prints a minimal message.
+- `notebooks/Data Understanding - Group 8.ipynb`: early dataset understanding notebook.
+- `notebooks/alexandre_NN.ipynb`: current training notebook for the ResNet50 pipeline.
+- `notebooks/alexandre_NN_regularized.ipynb`: isolated regularized training notebook with staged fine-tuning and separate artifact paths.
+- `notebooks/explore_wikiart.ipynb`: notebook for raw dataset inspection and visualization.
+- `notebooks/results/history1.csv`: archived training history from an earlier experiment.
+- `notebooks/results/history2.csv`: archived training history from an intermediate experiment.
+- `notebooks/results/history3.csv`: latest tracked consolidated training history.
+- `notebooks/training_log.csv`: CSV log generated by notebook training runs.
+- `pyproject.toml`: project metadata and the primary dependency definition for `uv`.
+- `requirements.txt`: legacy pip-style dependency list kept for alternate environments.
+- `src/data/split_dataset.py`: deterministic dataset splitter for train/validation/test generation.
+- `src/metrics/__init__.py`: metrics package marker.
+- `src/metrics/classification.py`: custom macro-F1 metric for sparse integer labels.
+- `src/models/resnet50.py`: ResNet50 transfer-learning model builder with augmentation layers.
+- `src/utils/utils.py`: dataset loading, MixUp, exact hash, and perceptual hash utilities.
+- `uv.lock`: locked dependency resolution for reproducible `uv` installs.
 
-Expected raw dataset layout:
+## Data Layout
+
+Tracked raw dataset:
 
 ```text
 data/
 └── wikiart/
-    ├── artist_1/
+    ├── artist_a/
     │   ├── image_001.jpg
-    │   ├── image_002.jpg
     │   └── ...
-    ├── artist_2/
+    ├── artist_b/
     └── ...
 ```
 
-Generated split layout:
+Generated local split folders after running the splitter:
 
 ```text
 data/
-├── wikiart/
-│   ├── artist_1/
-│   ├── artist_2/
-│   └── ...
-├── train/
-│   ├── artist_1/
-│   ├── artist_2/
-│   └── ...
-├── validation/
-│   ├── artist_1/
-│   ├── artist_2/
-│   └── ...
-└── test/
-    ├── artist_1/
-    ├── artist_2/
-    └── ...
+├── wikiart/      # tracked raw dataset
+├── train/        # generated locally, ignored by Git
+├── validation/   # generated locally, ignored by Git
+└── test/         # generated locally, ignored by Git
 ```
 
-- `data/wikiart/`: raw input dataset used by the split script and EDA notebooks.
-- `data/train/`, `data/validation/`, and `data/test/`: generated split output consumed by `notebooks/NN.ipynb`.
+The current notebooks and utility functions expect the generated split folders to exist under `data/`.
 
-## Split Script Behavior
+## Notes
 
-Default configuration in [`src/split_dataset.py`](/Users/alexandre/Documents/deep_learning_project/src/split_dataset.py):
-
-```python
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-RAW_DATASET_DIR_NAME = "wikiart"
-SOURCE_DIR = PROJECT_ROOT / "data" / RAW_DATASET_DIR_NAME
-OUTPUT_DIR = PROJECT_ROOT / "data"
-TRAIN_RATIO = 0.70
-VALIDATION_RATIO = 0.15
-TEST_RATIO = 0.15
-SEED = 42
-```
-
-The script:
-
-- resolves paths from the file location, so it works when launched from the repository root or from `src/`
-- reads non-hidden class directories from `data/wikiart/`
-- copies only `.jpg` files found directly inside each class directory
-- writes a fresh split dataset under `data/train`, `data/validation`, and `data/test`
-- uses deterministic per-class shuffling with seed `42`
-- preserves file metadata via `shutil.copy2`
-
-Validation rules:
-
-- The ratios must sum to `1.0`.
-- The source directory must exist and contain class subdirectories.
-- The output directory may contain the raw `data/wikiart/` source folder.
-- The output directory cannot already contain `train`, `validation`, or `test`.
-- The output directory still cannot equal the source directory or sit inside it.
-- Each class must have enough images to keep all three splits non-empty under the configured ratios.
-- Re-running requires removing or renaming the existing split folders first.
+- The project is currently notebook-driven; there is no finished CLI training entrypoint yet.
+- `notebooks/alexandre_NN.ipynb` assumes a 23-class problem in the current training helpers and notebook logic.
+- `notebooks/alexandre_NN_regularized.ipynb` keeps sparse-label training, leaves MixUp disabled on purpose, and writes separate training artifacts so the baseline notebook outputs are preserved.
+- `EDA/EDA.ipynb` is more robust about locating the project root than the training notebook, so it can be run from more locations.
+- Cluster-specific execution instructions live in `HPC_SETUP.md`.
