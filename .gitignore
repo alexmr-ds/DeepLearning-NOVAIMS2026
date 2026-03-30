@@ -11,7 +11,6 @@ __pycache__/
 
 *.h5
 *.keras
-logs/
-results/
+logs
 *.zip
 *.tar.gz
